@@ -89,10 +89,12 @@ static inline void le16enc(void *pp, uint16_t x)
 namespace {
 
     const int8_t L = 64;
+    const int8_t L_TCR = 16;
     const int VEC_SIZE = 16;
     const int NONCE_SIZE = sizeof(uint32_t);
     const int HASH_ROOT_SIZE = sizeof(uint8_t) * 16;
     const int BLOCK_SIZE = sizeof(uint64_t) * L * 2 * 128;
+    const int BLOCK_SIZE_TCR = sizeof(uint64_t) * L_TCR * 2 * 128;
     const int HASH_VALUE_SIZE = 32;
 }
 
@@ -375,6 +377,69 @@ NAN_METHOD(verify) {
 }
 
 
+NAN_METHOD(verify_tcr) {
+
+        if (info.Length() < 6)
+            return THROW_ERROR_EXCEPTION("hasher-mtp.verify_tcr - 6 arguments expected.");
+
+        char* input_ptr = (char*)Buffer::Data(info[0]->ToObject());
+        unsigned char* nonce_ptr = (unsigned char*)Buffer::Data(info[1]->ToObject());
+        unsigned char* hash_root_ptr = (unsigned char*)Buffer::Data(info[2]->ToObject());
+        unsigned char* block_ptr = (unsigned char*)Buffer::Data(info[3]->ToObject());
+        unsigned char* proof_ptr = (unsigned char*)Buffer::Data(info[4]->ToObject());
+        unsigned char* hash_value_out_ptr = (unsigned char*)Buffer::Data(info[5]->ToObject());
+
+        // hash root
+        uint8_t hash_root[16];
+        std::memcpy(&hash_root, hash_root_ptr, sizeof(hash_root));
+
+        // block
+        uint64_t block[L_TCR*2][128];
+        std::memcpy(&block, block_ptr, sizeof(block));
+
+        uint32_t nonce = *(uint32_t*)nonce_ptr;
+        uint256 hash_value;
+
+        bool is_valid = mtp::verify_fast_tcr(input_ptr, nonce, hash_root, block, &hash_value);
+
+        if (!is_valid) {
+            info.GetReturnValue().Set(Nan::False());
+        }
+        else {
+
+            // proof
+            std::deque <std::vector<uint8_t>> proof[L_TCR * 3];
+            unsigned char *proof_pos = proof_ptr;
+
+            for (int i = 0; i < L_TCR * 3; ++i) {
+
+                uint8_t deq_size;
+                std::memcpy(&deq_size, proof_pos, sizeof(uint8_t));
+                proof_pos += sizeof(uint8_t);
+
+                std::deque <std::vector<uint8_t>> deq(deq_size);
+
+                for (int j = 0; j < deq_size; ++j) {
+                    std::vector <uint8_t> vec(sizeof(uint8_t) * VEC_SIZE);
+                    std::memcpy(vec.data(), proof_pos, sizeof(uint8_t) * VEC_SIZE);
+                    proof_pos += sizeof(uint8_t) * VEC_SIZE;
+                    deq[j] = vec;
+                }
+                proof[i] = deq;
+            }
+
+            is_valid = mtp::verify_tcr(input_ptr, nonce, hash_root, block, proof, &hash_value);
+
+            if (is_valid) {
+                std::memcpy(hash_value_out_ptr, hash_value.begin(), hash_value.size());
+                info.GetReturnValue().Set(Nan::True());
+            } else {
+                info.GetReturnValue().Set(Nan::False());
+            }
+        }
+}
+
+
 NAN_METHOD(verify_fast) {
 
         if (info.Length() < 5)
@@ -408,12 +473,47 @@ NAN_METHOD(verify_fast) {
         }
 }
 
+NAN_METHOD(verify_fast_tcr) {
+
+        if (info.Length() < 5)
+            return THROW_ERROR_EXCEPTION("hasher-mtp.verify_fast_tcr - 5 arguments expected.");
+
+        char* input_ptr = (char*)Buffer::Data(info[0]->ToObject());
+        unsigned char* nonce_ptr = (unsigned char*)Buffer::Data(info[1]->ToObject());
+        unsigned char* hash_root_ptr = (unsigned char*)Buffer::Data(info[2]->ToObject());
+        unsigned char* block_ptr = (unsigned char*)Buffer::Data(info[3]->ToObject());
+        unsigned char* hash_value_out_ptr = (unsigned char*)Buffer::Data(info[4]->ToObject());
+
+        // hash root
+        uint8_t hash_root[16];
+        std::memcpy(&hash_root, hash_root_ptr, sizeof(hash_root));
+
+        // block
+        uint64_t block[L_TCR*2][128];
+        std::memcpy(&block, block_ptr, sizeof(block));
+
+        uint32_t nonce = *(uint32_t*)nonce_ptr;
+        uint256 hash_value;
+
+        bool is_valid = mtp::verify_fast_tcr(input_ptr, nonce, hash_root, block, &hash_value);
+
+        if (is_valid) {
+            std::memcpy(hash_value_out_ptr, hash_value.begin(), hash_value.size());
+            info.GetReturnValue().Set(Nan::True());
+        }
+        else {
+            info.GetReturnValue().Set(Nan::False());
+        }
+}
+
 
 NAN_MODULE_INIT(init) {
         Nan::Set(target, Nan::New("hash").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(hash)).ToLocalChecked());
         Nan::Set(target, Nan::New("hash_one").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(hash_one)).ToLocalChecked());
         Nan::Set(target, Nan::New("verify").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(verify)).ToLocalChecked());
+        Nan::Set(target, Nan::New("verify_tcr").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(verify_tcr)).ToLocalChecked());
         Nan::Set(target, Nan::New("verify_fast").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(verify_fast)).ToLocalChecked());
+        Nan::Set(target, Nan::New("verify_fast_tcr").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(verify_fast_tcr)).ToLocalChecked());
 }
 
 NODE_MODULE(hashermtp, init)

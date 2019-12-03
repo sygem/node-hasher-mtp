@@ -23,6 +23,9 @@ namespace mtp {
     /* Size of MTP block proof size */
     const unsigned int MTP_BLOCK_PROOF_SIZE = 64;
 
+    /* Size of MTP_TCR block proof size */
+    const unsigned int MTP_BLOCK_PROOF_SIZE_TCR = 16;
+
     /* Size of MTP block */
     const unsigned int MTP_BLOCK_SIZE = 140;
 
@@ -49,10 +52,23 @@ namespace mtp {
                     const std::deque<std::vector<uint8_t>> proof_mtp[MTP_BLOCK_PROOF_SIZE * 3],
                     uint256 *hash_out);
 
+    bool verify_tcr(const char *input,
+                    uint32_t nonce,
+                    const uint8_t hash_root_mtp[16],
+                    const uint64_t block_mtp[MTP_BLOCK_PROOF_SIZE_TCR * 2][128],
+                    const std::deque<std::vector<uint8_t>> proof_mtp[MTP_BLOCK_PROOF_SIZE_TCR * 3],
+                    uint256 *hash_out);
+
     bool verify_fast(const char *input,
                 uint32_t nonce,
                 const uint8_t hash_root_mtp[16],
                 const uint64_t block_mtp[MTP_BLOCK_PROOF_SIZE * 2][128],
+                uint256 *hash_out);
+
+    bool verify_fast_tcr(const char *input,
+                uint32_t nonce,
+                const uint8_t hash_root_mtp[16],
+                const uint64_t block_mtp[MTP_BLOCK_PROOF_SIZE_TCR * 2][128],
                 uint256 *hash_out);
 
     MerkleTree::Elements init(argon2_instance_t *instance);

@@ -1,12 +1,15 @@
 const mtp = require('bindings')('hashermtp.node');
 
 const MTP_L = 64;
+const MTP_L_TCR = 16;
 const ZCOIN_INPUT_SIZE = 80;
 const NONCE_SIZE = 4;
 const TARGET_SIZE = 32;
 const MTP_HASH_ROOT_SIZE = 16;
 const MTP_BLOCK_SIZE = 8 * MTP_L * 2 * 128;
+const MTP_BLOCK_SIZE_TCR = 8 * MTP_L_TCR * 2 * 128;
 const MAX_PROOF_SIZE = MTP_L * 3 * 353;
+const MAX_PROOF_SIZE_TCR = MTP_L_TCR * 3 * 353;
 const MTP_HASH_VALUE_SIZE = 32;
 const HASH_OUTPUT_BUFFER = Buffer.alloc(4 + NONCE_SIZE + MTP_HASH_VALUE_SIZE + MTP_HASH_ROOT_SIZE + MTP_BLOCK_SIZE + MAX_PROOF_SIZE);
 
@@ -62,6 +65,7 @@ module.exports.hashOne = hashOne;
  * @returns {boolean} True if verification is successful, otherwise false.
  */
 module.exports.verify = verify;
+module.exports.verify_tcr = verify_tcr;
 
 /**
  * Verify the given MTP proofs are valid and get hash result. Use to quickly find invalid proofs. In some cases may
@@ -79,6 +83,7 @@ module.exports.verify = verify;
  * @returns {boolean} True if verification is successful, otherwise false.
  */
 module.exports.verifyFast = verifyFast;
+module.exports.verifyFast_tcr = verifyFast_tcr;
 
 
 function hash(mtpInput, target, nonceStart, nonceEnd) {
@@ -173,6 +178,18 @@ function verify(mtpHeader, nonce, hashRoot, block, proof, hashValueOut) {
     return mtp.verify(mtpHeader, nonce, hashRoot, block, proof, hashValueOut);
 }
 
+function verify_tcr(mtpHeader, nonce, hashRoot, block, proof, hashValueOut) {
+
+    _expectBuffer(mtpHeader, 'mtpHeader', ZCOIN_INPUT_SIZE);
+    _expectBuffer(nonce, 'nonce', NONCE_SIZE);
+    _expectBuffer(hashRoot, 'hashRoot', MTP_HASH_ROOT_SIZE);
+    _expectBuffer(block, 'block', MTP_BLOCK_SIZE_TCR);
+    _expectBuffer(proof, 'proof');
+    _expectBuffer(hashValueOut, 'hashValueOut', MTP_HASH_VALUE_SIZE);
+
+    return mtp.verify_tcr(mtpHeader, nonce, hashRoot, block, proof, hashValueOut);
+}
+
 
 function verifyFast(mtpHeader, nonce, hashRoot, block, proof, hashValueOut) {
 
@@ -184,6 +201,18 @@ function verifyFast(mtpHeader, nonce, hashRoot, block, proof, hashValueOut) {
     _expectBuffer(hashValueOut, 'hashValueOut', MTP_HASH_VALUE_SIZE);
 
     return mtp.verify_fast(mtpHeader, nonce, hashRoot, block, proof, hashValueOut);
+}
+
+function verifyFast_tcr(mtpHeader, nonce, hashRoot, block, proof, hashValueOut) {
+
+    _expectBuffer(mtpHeader, 'mtpHeader', ZCOIN_INPUT_SIZE);
+    _expectBuffer(nonce, 'nonce', NONCE_SIZE);
+    _expectBuffer(hashRoot, 'hashRoot', MTP_HASH_ROOT_SIZE);
+    _expectBuffer(block, 'block', MTP_BLOCK_SIZE_TCR);
+    _expectBuffer(proof, 'proof');
+    _expectBuffer(hashValueOut, 'hashValueOut', MTP_HASH_VALUE_SIZE);
+
+    return mtp.verify_fast_tcr(mtpHeader, nonce, hashRoot, block, proof, hashValueOut);
 }
 
 
